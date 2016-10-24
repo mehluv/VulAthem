@@ -68,7 +68,6 @@ public class Tester_1
 	    String[] sa = line.split(" ");
 	    try
 	    {
-		System.out.println(i);
 		for (j = 0; j < rank; j++)
 		{
 		    sMat[i][j] = Double.parseDouble(sa[j + 1]);
@@ -122,7 +121,7 @@ public class Tester_1
 	    System.out.print(vMat[0][i] + " ");
 	}
 	System.out.println();
-	/*int k = 14;
+	int k = 14;
 	 Matrix sk = Tester.kReduction(new Matrix(sMat), k, k);
 	 System.out.println("Reduced Sk");
 	 //	sk.print(4, 3);
@@ -130,9 +129,9 @@ public class Tester_1
 	 System.out.println("Reduced Uk");
 	 //	uk.print(4, 3);
 	 Matrix vk = Tester.kReduction(new Matrix(vMat), vMat.length, k);
-	 System.out.println("Reduced Vk");*/
+	 System.out.println("Reduced Vk");
 	//	vk.print(4, 3);
-	Matrix sk = new Matrix(sMat);
+	/*Matrix sk = new Matrix(sMat);
 	Matrix uk = new Matrix(uMat);
 	Matrix vk = new Matrix(vMat);
 	/*for (i = 0; i < 2; i++)
@@ -150,8 +149,23 @@ public class Tester_1
 	System.out.println("Finding resultant prediction matrix:-");
 	//Matrix res = ukskh.times(skhvk);
 	Matrix res = uk.times(sk.times(vk.transpose()));
+	br = new BufferedReader(new FileReader("cAv.dat"));
+	String s[]=br.readLine().split(" ");
+	double[] cAv = new double[res.getColumnDimension()];
+	for(i=0;i<cAv.length;i++)
+	{
+	    cAv[i]=Double.parseDouble(s[i]);
+	}
+	for(j=0;j<res.getColumnDimension();j++)
+	{
+	    for(i=0;i<res.getRowDimension();i++)
+	    {
+		res.set(i, j, res.get(i, j)+cAv[j]);
+	    }
+	}
 	f = new File("predictedMatrix.dat");
-	res.print(new PrintWriter(f), 4, 3);
+	//to get single digit values
+	res.print(new PrintWriter(f), 1, 0);
 	for (i = 0; i < rank; i++)
 	{
 	    System.out.print((res.getArray())[0][i] + " ");
