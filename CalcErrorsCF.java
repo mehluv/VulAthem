@@ -27,6 +27,6 @@ public class CalcErrorsCF
 	    line = br.readLine();
 	}
 	Matrix testMat=MatrixModify.makeTestMatrix(m);
-	System.out.println("Error:- "+RMSE.rmse(m, testMat));
+	System.out.println("Error:- "+RMSE.rmse(m, testMat,MatrixModify.st));
     }
 }
