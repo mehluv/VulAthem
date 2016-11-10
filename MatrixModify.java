@@ -16,7 +16,7 @@ import java.util.TreeSet;
  */
 public class MatrixModify
 {
-
+	static TreeSet<Integer> st=null;
     public static Matrix makeTestMatrix(Matrix mat)
     {
 	if(mat.getRowDimension()<mat.getColumnDimension())
@@ -24,7 +24,7 @@ public class MatrixModify
 	    return makeTestMatrix(mat.transpose());
 	}
 	int n=mat.getRowDimension()/5;
-	TreeSet<Integer> st=new TreeSet<>();
+	st=new TreeSet<>();
 	Random r=new Random();
 	while(st.size()<n)
 	{
