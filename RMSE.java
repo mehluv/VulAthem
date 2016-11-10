@@ -4,12 +4,12 @@ import Jama.Matrix;
 class RMSE
 {
 
-    public static double rmse(Matrix trainingMat, Matrix testMat)	//testMat is predicted,trainingMat is original
+    public static double rmse(Matrix trainingMat, Matrix testMat, TreeSet<Integer> ts)	//testMat is predicted,trainingMat is original
     {
 	int m = trainingMat.getRowDimension();
 	int n = trainingMat.getColumnDimension();
 	double s = 0.0;
-	for (int i = 0; i < m; i++)
+	for (int i in ts)
 	{
 	    for (int j = 0; j < n; j++)
 	    {
