@@ -47,11 +47,11 @@ public class SVDBatchMil
 	while (line != null)
 	{
 	    String[] sa = line.split(" ");
-
-	    if (pre != Integer.parseInt(sa[1]))
+	    int temp=Integer.parseInt(sa[1])-1;
+	    if (pre != temp)
 	    {
 		rowPtr++;
-		pre = Integer.parseInt(sa[1]);
+		pre = temp;
 		userList.add(pre);
 	    }
 	    msub[rowPtr][Integer.parseInt(sa[2]) - 1] = Integer.parseInt(sa[3]);
@@ -124,7 +124,7 @@ public class SVDBatchMil
 	}
 	long a = new Date().getTime() - b;
 
-	f = new File("predictedMatrixFor1MDiv" + index + ".dat");
+	f = new File("temp/predictedMatrixFor1MDiv" + index + ".dat");
 	PrintWriter pw = new PrintWriter(f);
 	for (Integer i : userList)
 	{
