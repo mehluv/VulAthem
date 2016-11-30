@@ -10,24 +10,22 @@ public class CalcErrorsCF
 
     public static void main(String[] args) throws Exception
     {
-	double[][] msub = new double[942][1681];
+	double[][] msub = new double[6040][3952];
 	Matrix m = new Matrix(msub);
-	File fi = new File("predictedMatFor100k.dat");
+	/*
+	File fi = new File("testdata/100k - 4/Polygon_ratings/P_55414.TXT");
 	BufferedReader br = new BufferedReader(new FileReader(fi));
-	String line = br.readLine();
-	line = br.readLine();
-	System.out.println(fi);
-	for (int k = 0; k < 942; k++)
+	String line=br.readLine();
+	int i=0;
+	while (line != null)
 	{
-	    String[] rPred = line.split(" ");
-	    for (int j = 0; j < 1681; j++)
-	    {
-		msub[k][j] = Double.parseDouble(rPred[j + 1]);
-	    }
+	    String[] sa = line.split("	 ");
+	    msub[Integer.parseInt(sa[1])][Integer.parseInt(sa[2]) - 1] = Integer.parseInt(sa[3]);
 	    line = br.readLine();
-	}
-	Matrix testMat=MatrixModify.makeTestMatrix(m);
-	System.out.println("Error:- "+RMSE.rmse(m, testMat,MatrixModify.st));
-	System.out.println("Error:- "+MAE.mae(m, testMat,MatrixModify.st))
+	    
+	}*/
+	Matrix testMat=MatrixModify.makeMatrices(new File("testdata/Poly_user_rat_ts3"), m);
+	System.out.println("RMSE:- "+RMSE.rmse(m, testMat,MatrixModify.testRows, MatrixModify.definedList));
+	System.out.println("MAE:- "+MAE.mae(m, testMat,MatrixModify.testRows, MatrixModify.definedList));
     }
 }
