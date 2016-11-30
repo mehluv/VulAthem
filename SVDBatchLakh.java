@@ -30,7 +30,7 @@ public class SVDBatchLakh
 	while (line != null)
 	{
 	    String s[] = line.split("	 ");
-	    int comp1 = Integer.parseInt(s[1]);
+	    int comp1 = Integer.parseInt(s[1]) - 1;
 	    if (comp1 != pre)
 	    {
 		pre = comp1;
@@ -51,12 +51,12 @@ public class SVDBatchLakh
 	    if (pre != Integer.parseInt(sa[1]))
 	    {
 		rowPtr++;
-		pre = Integer.parseInt(sa[1]);
+		pre = Integer.parseInt(sa[1]) - 1;
 		userList.add(pre);
 	    }
 	    msub[rowPtr][Integer.parseInt(sa[2]) - 1] = Integer.parseInt(sa[3]);
 	    line = br.readLine();
-	    
+
 	}
 
 	Matrix m1 = new Matrix(msub);
@@ -119,12 +119,21 @@ public class SVDBatchLakh
 	{
 	    for (int i = 0; i < res.getRowDimension(); i++)
 	    {
-		res.set(i, j, res.get(i, j) + cAv[j]);
+		double a = res.get(i, j) + cAv[j];
+		if (a < 1.0)
+		{
+		    a = 1.0;
+		}
+		else if (a > 5.0)
+		{
+		    a = 5.0;
+		}
+		res.set(i, j, a);
 	    }
 	}
 	long a = new Date().getTime() - b;
 
-	f = new File("predictedMatrixFor100kDiv" + index + ".dat");
+	f = new File("temp/predictedMatrixFor100kDiv" + index + ".dat");
 	PrintWriter pw = new PrintWriter(f);
 	for (Integer i : userList)
 	{
@@ -171,7 +180,7 @@ public class SVDBatchLakh
 	    for (int k = 0; k < sa.length; k++)
 	    {
 		String[] rPred = line.split(" ");
-		rowPtr = userList[k]-1;
+		rowPtr = userList[k] - 1;
 		for (int j = 0; j < 1681; j++)
 		{
 		    msub[rowPtr][j] = Double.parseDouble(rPred[j + 1]);
@@ -180,7 +189,7 @@ public class SVDBatchLakh
 	    }
 	}
 	File fi = new File("prediMat.dat");
-	PrintWriter pw=new PrintWriter(fi);
+	PrintWriter pw = new PrintWriter(fi);
 	m.print(pw, 4, 3);
 	pw.flush();
     }
