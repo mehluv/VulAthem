@@ -1,22 +1,32 @@
-import Jama.Matrix;
 
-public class MAE {
-	public static double mae(Matrix trainingMat, Matrix testMat,Treeset<Integer> ts)	//testMat is predicted,trainingMat is original
+import Jama.Matrix;
+import java.util.ArrayList;
+import java.util.TreeSet;
+
+public class MAE
+{
+
+    public static double mae(Matrix trainingMat, Matrix testMat, TreeSet<Integer> rowList, ArrayList<Integer>[] definedSet)	//testMat is predicted,trainingMat is original
     {
 	int m = trainingMat.getRowDimension();
 	int n = trainingMat.getColumnDimension();
 	double s = 0.0;
-	for (int i in ts)
+	int ctr=0;
+	for (int i : rowList)
 	{
-	    for (int j = 0; j < n; j++)
+	    for (int j: definedSet[ctr])
 	    {
-		s += (trainingMat.get(i, j) - testMat.get(i, j));
+		s += Math.abs((trainingMat.get(i, j) - testMat.get(i, j)));
 	    }
+	    ctr++;
 	}
-	double error = Math.sqrt(s / (m * n));
+	int noOfRatings=0;
+	for (ArrayList<Integer> ar: definedSet)
+	{
+	    noOfRatings+=ar.size();
+	}
+	double error = s / noOfRatings;
 
 	return error;
     }
-
-
 }
