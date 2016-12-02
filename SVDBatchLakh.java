@@ -20,6 +20,38 @@ import java.util.Date;
 public class SVDBatchLakh
 {
 
+    static final double lRate = 0.001;
+
+    static void train(Matrix u, Matrix v, Matrix origMat, double[] cAv, ArrayList[] definedList)
+    {
+	System.out.println("Training:-");
+	int ctr = 0;
+	for (ArrayList<Integer> al : definedList)
+	{
+	    for (Integer k : al)
+	    {
+		for (int feature=0;feature<u.getColumnDimension();feature++)
+		{
+		    double err = 0.0, newErr = 1.0;
+		    while (Math.abs(err - newErr) > 0.0001)
+		    {
+			newErr = err;
+			double predRating = 0;
+			for (int i = 0; i < u.getColumnDimension(); i++)
+			{
+			    predRating += u.get(ctr, i) * v.get(i, k);
+			}
+			err = origMat.get(ctr, k) - predRating;
+			u.set(ctr, feature, u.get(ctr,feature)*err*lRate);
+			v.set(feature, k, v.get(feature,k)*err*lRate);
+		    }
+		}
+
+	    }
+	    ctr++;
+	}
+    }
+
     static void work(File f, int index) throws Exception
     {
 	BufferedReader br = new BufferedReader(new FileReader(f));
@@ -47,18 +79,17 @@ public class SVDBatchLakh
 	while (line != null)
 	{
 	    String[] sa = line.split("	 ");
-
-	    if (pre != Integer.parseInt(sa[1]))
+	    int temp = Integer.parseInt(sa[1]) - 1;
+	    if (pre != temp)
 	    {
 		rowPtr++;
-		pre = Integer.parseInt(sa[1]) - 1;
+		pre = temp;
 		userList.add(pre);
 	    }
 	    msub[rowPtr][Integer.parseInt(sa[2]) - 1] = Integer.parseInt(sa[3]);
 	    line = br.readLine();
 
 	}
-
 	Matrix m1 = new Matrix(msub);
 	double[] cAv = new double[msub[0].length];
 	for (int i = 0; i < msub[0].length; i++)
@@ -78,6 +109,21 @@ public class SVDBatchLakh
 		continue;
 	    }
 	    cAv[i] /= k;
+	}
+	Matrix mOrig = m1.copy().transpose();
+	System.out.println(mOrig.getRowDimension()+" "+mOrig.getColumnDimension());
+	ArrayList[] definedList = new ArrayList[1681];
+	int ctr = 0;
+	for (int i = 0; i < mOrig.getRowDimension(); i++)
+	{
+	    definedList[i] = new ArrayList<Integer>();
+	    for (int j = 0; j < mOrig.getColumnDimension(); j++)
+	    {
+		if (mOrig.get(i, j) != 0)
+		{
+		    definedList[ctr].add(j);
+		}
+	    }
 	}
 	Tester.naiveNormalize(m1);
 	Matrix m = m1.transpose();
@@ -102,7 +148,7 @@ public class SVDBatchLakh
 	System.out.println("Dimensions of U:- " + u.getRowDimension() + ", " + u.getColumnDimension());
 	System.out.println("Dimensions of S:- " + s.getRowDimension() + ", " + s.getColumnDimension());
 	System.out.println("Dimensions of V:- " + v.getRowDimension() + ", " + v.getColumnDimension());
-	int k = m.rank() / 7;
+	int k = m.rank() / 5;
 	Matrix sk = Tester.kReduction(s, k, k);
 	System.out.println("Reduced Sk");
 	//	sk.print(4, 3);
@@ -111,9 +157,17 @@ public class SVDBatchLakh
 	//	uk.print(4, 3);
 	Matrix vk = Tester.kReduction(v, v.getRowDimension(), k);
 	System.out.println("Reduced Vk");
+	for (int i = 0; i < k; i++)
+	{
+	    sk.set(i, i, Math.sqrt(sk.get(i, i)));
+	}
+	uk = uk.times(sk);
+	vk = sk.times(vk.transpose());
 	System.out.println("Finding resultant prediction matrix:-");
 	//Matrix res = ukskh.times(skhvk);
-	Matrix res1 = uk.times(sk.times(vk.transpose()));
+	train(uk, vk, mOrig, cAv, definedList);
+	Matrix res1 = uk.times(vk);
+	//Matrix res1 = uk.times(sk.times(vk.transpose()));
 	Matrix res = res1.transpose();
 	for (int j = 0; j < res.getColumnDimension(); j++)
 	{
