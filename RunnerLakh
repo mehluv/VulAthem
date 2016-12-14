@@ -1,0 +1,563 @@
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Date;
+import Jama.Matrix;
+import Jama.SingularValueDecomposition;
+import java.util.Random;
+import java.util.TreeSet;
+
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+/**
+ *
+ * @author luv
+ */
+public class RunnerLakh
+{
+
+    static final double lRate = 0.000001;
+    static final double reg = 0.001;
+    static final int numIterations = 200;
+    static TreeSet<Integer> testRows = null;
+    static ArrayList<Integer>[] definedList;
+    static double rmse;
+    static double mae;
+
+    static void trainSGD(Matrix u, Matrix v, Matrix origMat, double[] cAv, ArrayList[] definedList)
+    {
+	System.out.println("Training:-");
+
+	for (int iter = 0; iter < numIterations; iter++)
+	{
+	    int ctr = 0;
+	    for (ArrayList<Integer> al : definedList)
+	    {
+		for (Integer k : al)
+		{
+		    for (int feature = 0; feature < u.getColumnDimension(); feature++)
+		    {
+			double err = 0.0, newErr = 1.0;
+			double predRating = 0.0;
+			for (int i = 0; i < u.getColumnDimension(); i++)
+			{
+			    predRating += u.get(ctr, i) * v.get(i, k);//add the cAv here
+			}
+			predRating += cAv[k];
+			err = origMat.get(ctr, k) - predRating;
+			double uNew = u.get(ctr, feature) + lRate * (v.get(feature, k) * err - reg * u.get(ctr, feature));
+			double vNew = v.get(feature, k) + lRate * (u.get(ctr, feature) * err - reg * v.get(feature, k));
+			//System.out.println(uNew + " " + vNew);
+			u.set(ctr, feature, uNew);
+			v.set(feature, k, vNew);
+			/*u.set(ctr, feature, u.get(ctr,feature)*err*lRate);
+			 v.set(feature, k, v.get(feature,k)*err*lRate);*/
+
+		    }
+		}
+	    }
+	}
+    }
+
+    static void train(Matrix u, Matrix v, Matrix origMat, double[] cAv, ArrayList[] trainingSet, int reducedSize)
+    {
+	System.out.println("Training:-");
+	int ctr = 0;
+	for (int iter = 0; iter < numIterations; iter++)
+	{
+	    ctr = 0;
+	    for (ArrayList<Integer> al : trainingSet)
+	    {
+		for (Integer k : al)
+		{
+		    for (int feature = 0; feature < reducedSize; feature++)
+		    {
+			//System.out.println("==========");
+			double err;
+			double predRating = 0;
+			for (int i = 0; i < u.getColumnDimension(); i++)
+			{
+			    predRating += u.get(ctr, i) * v.get(i, k);//add the cAv here
+			}
+			predRating += cAv[k];
+			if (origMat.get(ctr, k) > 5.0)
+			{
+			    origMat.set(ctr, k, 5.0);
+			}
+			else if (origMat.get(ctr, k) < 1.0)
+			{
+			    origMat.set(ctr, k, 1.0);
+			}
+			err = origMat.get(ctr, k) - predRating;
+			double uNew = u.get(ctr, feature) + v.get(feature, k) * err * lRate;
+			double vNew = v.get(feature, k) + u.get(ctr, feature) * err * lRate;
+			//System.out.println(uNew + " " + vNew);
+			u.set(ctr, feature, uNew);
+			v.set(feature, k, vNew);
+			/*u.set(ctr, feature, u.get(ctr,feature)*err*lRate);
+			 v.set(feature, k, v.get(feature,k)*err*lRate);*/
+		    }
+
+		}
+		ctr++;
+	    }
+	}
+	ctr = 0;
+	for (ArrayList<Integer> al : trainingSet)
+	{
+	    for (Integer k : al)
+	    {
+		double predRating = 0.0;
+		for (int i = 0; i < u.getColumnDimension(); i++)
+		{
+		    predRating += u.get(ctr, i) * v.get(i, k);//add the cAv here
+		}
+		double err = origMat.get(ctr, k) - predRating;
+		mae += Math.abs(err);
+		rmse += Math.pow(err, 2);
+	    }
+	    ctr++;
+	}
+    }
+
+    static void work(File f, int index) throws Exception
+    {
+	BufferedReader br = new BufferedReader(new FileReader(f));
+	String line = br.readLine();
+	int pre = -1;
+	int dimRow = 0;
+	//this will contain all the users in a single file
+	ArrayList<Integer> userList = new ArrayList<>();
+	while (line != null)
+	{
+	    String s[] = line.split("	 ");
+	    int comp1 = Integer.parseInt(s[1]) - 1;
+	    if (comp1 != pre)
+	    {
+		pre = comp1;
+		dimRow++;
+	    }
+	    line = br.readLine();
+	}
+	System.out.println("Number of users in cluster:- " + dimRow);
+	double[][] msub = new double[dimRow][1681]; //change the shit
+	//resetting the file pointer
+	br = new BufferedReader(new FileReader(f));
+	line = br.readLine();
+	pre = -1;
+	int rowPtr = -1;
+	//read in all the values
+	while (line != null)
+	{
+	    String[] sa = line.split("	 ");
+	    int temp = Integer.parseInt(sa[1]) - 1;
+	    if (pre != temp)
+	    {
+		rowPtr++;
+		pre = temp;
+		userList.add(pre);
+	    }
+	    msub[rowPtr][Integer.parseInt(sa[2]) - 1] = Integer.parseInt(sa[3]);
+	    line = br.readLine();
+
+	}
+	Matrix m1 = new Matrix(msub);
+	//keep column averages in memory
+	double[] cAv = new double[msub[0].length];
+	for (int i = 0; i < msub[0].length; i++)
+	{
+	    int k = 0;
+	    for (int j = 0; j < msub.length; j++)
+	    {
+		if (msub[j][i] != 0)
+		{
+		    cAv[i] += msub[j][i];
+		    k++;
+		}
+	    }
+	    if (k == 0)
+	    {
+		cAv[i] = 3.0;
+		continue;
+	    }
+	    cAv[i] /= k;
+	}
+	//our SVD program doesn't work for rowDimension<columnDimension
+	Matrix mt = m1.transpose();
+	System.out.println(mt.getRowDimension() + " " + mt.getColumnDimension());
+	ArrayList[] definedList = new ArrayList[dimRow];
+	int ctr = 0;
+	for (int i = 0; i < m1.getRowDimension(); i++)
+	{
+	    definedList[i] = new ArrayList<Integer>();
+	    for (int j = 0; j < m1.getColumnDimension(); j++)
+	    {
+		if (m1.get(i, j) != 0)
+		{
+		    definedList[i].add(j);
+		}
+		//System.out.println(definedList[i].size());
+	    }
+	}
+	naiveNormalize(m1);
+	//Matrix m = m1.transpose();
+	//File fout = new File("origMat.dat");
+	//m.print(new PrintWriter(fout), 4, 3);
+	//File fout = new File("origMat.dat");
+	//m.print(new PrintWriter(fout), 4, 3);
+	//this will generated the Customer Average array and place into a file
+	/*PrintWriter avWrite = new PrintWriter(new BufferedWriter(new FileWriter("cAv.dat")));
+	 for (int i = 0; i < cAv.length; i++)
+	 {
+	 avWrite.print(cAv[i] + " ");
+	 }
+	 avWrite.flush();*/
+	Date d = new Date();
+	long b = d.getTime();
+	System.out.println("Performing SVD");
+	SingularValueDecomposition svd = new SingularValueDecomposition(mt);
+	System.out.println("Rank:- " + mt.rank());
+	int rank = mt.rank();
+	Matrix u = svd.getU(), v = svd.getV(), s = svd.getS();
+	System.out.println("Dimensions of U:- " + u.getRowDimension() + ", " + u.getColumnDimension());
+	System.out.println("Dimensions of S:- " + s.getRowDimension() + ", " + s.getColumnDimension());
+	System.out.println("Dimensions of V:- " + v.getRowDimension() + ", " + v.getColumnDimension());
+	int k = mt.rank() / 5;
+	Matrix sk = kReduction(s, k, k);
+	System.out.println("Reduced Sk");
+	//	sk.print(4, 3);
+	Matrix uk = kReduction(u, u.getRowDimension(), k);
+	System.out.println("Reduced Uk");
+	//	uk.print(4, 3);
+	Matrix vk = kReduction(v, v.getRowDimension(), k);
+	System.out.println("Reduced Vk");
+	for (int i = 0; i < k; i++)
+	{
+	    sk.set(i, i, Math.sqrt(sk.get(i, i)));
+	}
+	uk = uk.times(sk);
+	vk = sk.times(vk.transpose());
+	System.out.println("Finding resultant prediction matrix:-");
+	//Matrix res = ukskh.times(skhvk);
+	ArrayList<Integer>[] trainingSet = new ArrayList[m1.getRowDimension()];
+	ArrayList<Integer>[] testSet = new ArrayList[m1.getRowDimension()];
+	testDataSelection(definedList, trainingSet, testSet);
+	train(vk.transpose(), uk.transpose(), m1, cAv, trainingSet, k);
+	Matrix res1 = uk.times(vk);
+	//Matrix res1 = uk.times(sk.times(vk.transpose()));
+	Matrix res = res1.transpose();
+	/*for (int j = 0; j < res.getColumnDimension(); j++)
+	 {
+	 for (int i = 0; i < res.getRowDimension(); i++)
+	 {
+	 double a = res.get(i, j) + cAv[j];
+	 if (a < 1.0)
+	 {
+	 a = 1.0;
+	 }
+	 else if (a > 5.0)
+	 {
+	 a = 5.0;
+	 }
+	 res.set(i, j, a);
+	 }
+	 }*/
+	long a = new Date().getTime() - b;
+
+	f = new File("temp/predictedMatrixFor100kDiv" + index + ".dat");
+	PrintWriter pw = new PrintWriter(f);
+	for (Integer i : userList)
+	{
+	    pw.print(i + " ");
+	}
+	pw.println();
+	res.print(pw, 4, 3);
+	pw.flush();
+	for (int i = 0; i < rank; i++)
+	{
+	    System.out.print((res.getArray())[0][i] + " ");
+	}
+	System.out.println();
+
+	System.out.println("Time taken:- " + a / 1000);
+    }
+
+    static Matrix kReduction(Matrix m, int k, int k1)
+    {
+	Matrix reduced = new Matrix(m.getArrayCopy(), k, k1);
+	return reduced;
+    }
+
+    static void naiveNormalize(Matrix m)
+    {
+	double[][] msub = m.getArray();
+	double[] cAv = new double[msub[0].length];
+	double[] rAv = new double[msub.length];
+	for (int i = 0; i < msub[0].length; i++)
+	{
+	    int k = 0;
+	    for (int j = 0; j < msub.length; j++)
+	    {
+		if (msub[j][i] != 0)
+		{
+		    cAv[i] += msub[j][i];
+		    k++;
+		}
+	    }
+	    if (k == 0)
+	    {
+		cAv[i] = 3.0;
+		continue;
+	    }
+	    cAv[i] /= k;
+	}
+
+	for (int i = 0; i < msub.length; i++)
+	{
+	    int k = 0;
+	    rAv[i] = 0;
+	    for (int j = 0; j < msub[0].length; j++)
+	    {
+		if (msub[i][j] != 0)
+		{
+		    rAv[i] += msub[i][j];
+		    k++;
+		}
+	    }
+	    if (k != 0)
+	    {
+		rAv[i] /= k;
+	    }
+	}
+	for (int i = 0; i < msub[0].length; i++)
+	{
+	    for (int j = 0; j < msub.length; j++)
+	    {
+		if (msub[j][i] == 0)
+		{
+		    msub[j][i] = cAv[i];
+		}
+	    }
+	}
+	for (int i = 0; i < msub.length; i++)
+	{
+	    for (int j = 0; j < msub[0].length; j++)
+	    {
+//		System.out.println(rAv[i]);
+		msub[i][j] -= rAv[i];
+	    }
+	}
+    }
+
+    public static double rmse(Matrix trainingMat, Matrix testMat, ArrayList<Integer>[] testSet)	//testMat is predicted,trainingMat is original
+    {
+	int m = trainingMat.getRowDimension();
+	int n = trainingMat.getColumnDimension();
+	double s = 0.0;
+	int ctr = 0;
+	for (int i : testRows)
+	{
+	    for (int j : testSet[ctr])
+	    {
+		double a = (trainingMat.get(i, j));
+		double b = testMat.get(i, j);
+		s += Math.pow((a - b), 2);
+	    }
+	    ctr++;
+	}
+
+	int noOfRatings = 0;
+	for (ArrayList<Integer> ar : definedList)
+	{
+	    noOfRatings += ar.size();
+	}
+	double error = Math.sqrt(s / noOfRatings);///m;// / (m * n));
+
+	return error;
+    }
+
+    public static double mae(Matrix trainingMat, Matrix testMat)	//testMat is predicted,trainingMat is original
+    {
+	int m = trainingMat.getRowDimension();
+	int n = trainingMat.getColumnDimension();
+	double s = 0.0;
+	int ctr = 0;
+	for (int i : testRows)
+	{
+	    for (int j : definedList[ctr])
+	    {
+		s += Math.abs((trainingMat.get(i, j) - testMat.get(i, j)));
+	    }
+	    ctr++;
+	}
+	int noOfRatings = 0;
+	for (ArrayList<Integer> ar : definedList)
+	{
+	    noOfRatings += ar.size();
+	}
+	double error = s / noOfRatings;
+
+	return error;
+    }
+
+    public static Matrix makeMatrices(File fi, Matrix mat) throws Exception
+    {
+	boolean flag = false;
+	//File tha shit
+	int index = 1;
+	double[][] msub = mat.getArray();
+	//read the folder
+	for (File f : fi.listFiles())
+	{
+	    BufferedReader br = new BufferedReader(new FileReader(f));
+	    String line = br.readLine();
+	    int pre = -1;
+	    int dimRow = 0;
+	    ArrayList<Integer> userList = new ArrayList<>();
+	    //count the number of users represented in each file
+	    while (line != null)
+	    {
+		String s[] = line.split("	 ");
+		int comp1 = Integer.parseInt(s[1]);
+		if (comp1 != pre)
+		{
+		    pre = comp1;
+		    dimRow++;
+		}
+		line = br.readLine();
+	    }
+	    //reset the position of reading
+	    br = new BufferedReader(new FileReader(f));
+	    line = br.readLine();
+	    pre = -1;
+	    int rowPtr = -1;
+	    //read in all the shit
+	    while (line != null)
+	    {
+		String[] sa = line.split("	 ");
+
+		if (pre != Integer.parseInt(sa[1]))
+		{
+		    rowPtr++;
+		    pre = Integer.parseInt(sa[1]);
+		    userList.add(pre);
+		}
+		msub[rowPtr][Integer.parseInt(sa[2]) - 1] = Integer.parseInt(sa[3]);
+		line = br.readLine();
+
+	    }
+	    index++;
+	}
+	int n = mat.getRowDimension();
+	//changing everything here. ALL the rows will be used.
+	definedList = new ArrayList[n];
+	for (int ctr = 0; ctr < n; ctr++)
+	{
+	    //System.out.println(ctr);
+	    definedList[ctr] = new ArrayList<>();
+	    
+	    for (int j = 0; j < 1682; j++)
+	    {
+		if (mat.get(ctr, j) != 0)
+		{
+		    definedList[ctr].add(j);
+		}
+	    }
+	    //System.out.println(ctr+":- "+definedList[ctr]);
+	}
+	//now perform prediction
+	index = 1;
+	for (File f : fi.listFiles())
+	{
+	    System.out.println(f);
+	    work(f, index);
+	    index++;
+	}
+	int noOfRatings = 0;
+	System.out.println(definedList.length);
+	for (ArrayList<Integer> ar : definedList)
+	{
+	    System.out.println(ar.size());
+	    noOfRatings += ar.size();
+	}
+
+	mae /= noOfRatings;
+	rmse = Math.sqrt(rmse / noOfRatings);
+	msub = new double[943][1682];
+	Matrix res = new Matrix(msub);
+	for (int i = 1; i < index; i++)
+	{
+	    File f = new File("temp/predictedMatrixFor100kDiv" + i + ".dat");
+	    BufferedReader br = new BufferedReader(new FileReader(f));
+	    String[] sa = br.readLine().split(" ");
+	    int userList[] = new int[sa.length];
+	    for (int j = 0; j < sa.length; j++)
+	    {
+		userList[j] = Integer.parseInt(sa[j]);
+	    }
+	    String line = br.readLine();
+	    line = br.readLine();
+	    int rowPtr;
+	    System.out.println(fi);
+	    for (int k = 0; k < sa.length; k++)
+	    {
+		String[] rPred = line.split(" ");
+		rowPtr = userList[k];
+		for (int j = 0; j < 1681; j++)
+		{
+		    msub[rowPtr][j] = Double.parseDouble(rPred[j + 1]);
+		}
+		line = br.readLine();
+	    }
+	}
+	return res;
+    }
+
+    static void testDataSelection(ArrayList<Integer>[] definedList, ArrayList<Integer>[] trainingSet, ArrayList<Integer>[] testSet)
+    {
+	Random r = new Random();
+	for (int i = 0; i < definedList.length; i++)
+	{
+	    trainingSet[i] = new ArrayList<Integer>();
+	    testSet[i] = new ArrayList<Integer>();
+	    TreeSet<Integer> tempHolder = new TreeSet<>();
+	    while (tempHolder.size() <= (int) (definedList[i].size() * 0.8))
+	    {
+		tempHolder.add(r.nextInt(definedList[i].size()));
+	    }
+	    for (int j : definedList[i])
+	    {
+		if (tempHolder.contains(j))
+		{
+		    trainingSet[i].add(j);
+		}
+		else
+		{
+		    testSet[i].add(j);
+		}
+	    }
+	}
+    }
+
+    public static void main(String[] args) throws Exception
+    {
+	double[][] msub = new double[943][1682];
+	Matrix m = new Matrix(msub);
+	File f = new File("temp/");
+	for (File fi : f.listFiles())
+	{
+	    fi.delete();
+	}
+	Matrix testMat = makeMatrices(new File("testdata/100k - 4/Polygon_ratings"), m);
+	System.out.println("RMSE:- " + rmse);
+	System.out.println("MAE:- " + mae);
+	//System.out.println("RMSE:- " + rmse(m, testMat));
+	//System.out.println("MAE:- " + mae(m, testMat));
+    }
+}
