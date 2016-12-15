@@ -22,26 +22,25 @@ import java.util.TreeSet;
 public class RunnerLakh
 {
 
-    static final double lRate = 0.000001;
+    static final double lRate = 0.1;
     static final double reg = 0.001;
-    static final int numIterations = 200;
-    static TreeSet<Integer> testRows = null;
+    static final int numIterations = 300;
     static ArrayList<Integer>[] definedList;
     static double rmse;
     static double mae;
 
-    static void trainSGD(Matrix u, Matrix v, Matrix origMat, double[] cAv, ArrayList[] definedList)
+    static void trainSGD(Matrix u, Matrix v, Matrix origMat, double[] cAv, ArrayList[] trainingSet, ArrayList[] testSet, int reducedSize)
     {
 	System.out.println("Training:-");
 
 	for (int iter = 0; iter < numIterations; iter++)
 	{
 	    int ctr = 0;
-	    for (ArrayList<Integer> al : definedList)
+	    for (ArrayList<Integer> al : trainingSet)
 	    {
 		for (Integer k : al)
 		{
-		    for (int feature = 0; feature < u.getColumnDimension(); feature++)
+		    for (int feature = 0; feature < reducedSize; feature++)
 		    {
 			double err = 0.0, newErr = 1.0;
 			double predRating = 0.0;
@@ -63,9 +62,25 @@ public class RunnerLakh
 		}
 	    }
 	}
+	int ctr = 0;
+	for (ArrayList<Integer> al : testSet)
+	{
+	    for (Integer k : al)
+	    {
+		double predRating = 0.0;
+		for (int i = 0; i < u.getColumnDimension(); i++)
+		{
+		    predRating += u.get(ctr, i) * v.get(i, k);//add the cAv here
+		}
+		double err = origMat.get(ctr, k) - predRating;
+		mae += Math.abs(err);
+		rmse += Math.pow(err, 2);
+	    }
+	    ctr++;
+	}
     }
 
-    static void train(Matrix u, Matrix v, Matrix origMat, double[] cAv, ArrayList[] trainingSet, int reducedSize)
+    static void train(Matrix u, Matrix v, Matrix origMat, double[] cAv, ArrayList[] trainingSet, ArrayList[] testSet, int reducedSize)
     {
 	System.out.println("Training:-");
 	int ctr = 0;
@@ -76,12 +91,13 @@ public class RunnerLakh
 	    {
 		for (Integer k : al)
 		{
+		    //System.out.println("==========");
 		    for (int feature = 0; feature < reducedSize; feature++)
 		    {
-			//System.out.println("==========");
+
 			double err;
 			double predRating = 0;
-			for (int i = 0; i < u.getColumnDimension(); i++)
+			for (int i = 0; i <reducedSize); i++)
 			{
 			    predRating += u.get(ctr, i) * v.get(i, k);//add the cAv here
 			}
@@ -97,7 +113,7 @@ public class RunnerLakh
 			err = origMat.get(ctr, k) - predRating;
 			double uNew = u.get(ctr, feature) + v.get(feature, k) * err * lRate;
 			double vNew = v.get(feature, k) + u.get(ctr, feature) * err * lRate;
-			//System.out.println(uNew + " " + vNew);
+			//System.out.println(err);
 			u.set(ctr, feature, uNew);
 			v.set(feature, k, vNew);
 			/*u.set(ctr, feature, u.get(ctr,feature)*err*lRate);
@@ -109,12 +125,12 @@ public class RunnerLakh
 	    }
 	}
 	ctr = 0;
-	for (ArrayList<Integer> al : trainingSet)
+	for (ArrayList<Integer> al : testSet)
 	{
 	    for (Integer k : al)
 	    {
 		double predRating = 0.0;
-		for (int i = 0; i < u.getColumnDimension(); i++)
+		for (int i = 0; i < reducedSize; i++)
 		{
 		    predRating += u.get(ctr, i) * v.get(i, k);//add the cAv here
 		}
@@ -248,7 +264,7 @@ public class RunnerLakh
 	ArrayList<Integer>[] trainingSet = new ArrayList[m1.getRowDimension()];
 	ArrayList<Integer>[] testSet = new ArrayList[m1.getRowDimension()];
 	testDataSelection(definedList, trainingSet, testSet);
-	train(vk.transpose(), uk.transpose(), m1, cAv, trainingSet, k);
+	train(vk.transpose(), uk.transpose(), m1, cAv, trainingSet, testSet, k);
 	Matrix res1 = uk.times(vk);
 	//Matrix res1 = uk.times(sk.times(vk.transpose()));
 	Matrix res = res1.transpose();
@@ -355,57 +371,6 @@ public class RunnerLakh
 	}
     }
 
-    public static double rmse(Matrix trainingMat, Matrix testMat, ArrayList<Integer>[] testSet)	//testMat is predicted,trainingMat is original
-    {
-	int m = trainingMat.getRowDimension();
-	int n = trainingMat.getColumnDimension();
-	double s = 0.0;
-	int ctr = 0;
-	for (int i : testRows)
-	{
-	    for (int j : testSet[ctr])
-	    {
-		double a = (trainingMat.get(i, j));
-		double b = testMat.get(i, j);
-		s += Math.pow((a - b), 2);
-	    }
-	    ctr++;
-	}
-
-	int noOfRatings = 0;
-	for (ArrayList<Integer> ar : definedList)
-	{
-	    noOfRatings += ar.size();
-	}
-	double error = Math.sqrt(s / noOfRatings);///m;// / (m * n));
-
-	return error;
-    }
-
-    public static double mae(Matrix trainingMat, Matrix testMat)	//testMat is predicted,trainingMat is original
-    {
-	int m = trainingMat.getRowDimension();
-	int n = trainingMat.getColumnDimension();
-	double s = 0.0;
-	int ctr = 0;
-	for (int i : testRows)
-	{
-	    for (int j : definedList[ctr])
-	    {
-		s += Math.abs((trainingMat.get(i, j) - testMat.get(i, j)));
-	    }
-	    ctr++;
-	}
-	int noOfRatings = 0;
-	for (ArrayList<Integer> ar : definedList)
-	{
-	    noOfRatings += ar.size();
-	}
-	double error = s / noOfRatings;
-
-	return error;
-    }
-
     public static Matrix makeMatrices(File fi, Matrix mat) throws Exception
     {
 	boolean flag = false;
@@ -461,7 +426,7 @@ public class RunnerLakh
 	{
 	    //System.out.println(ctr);
 	    definedList[ctr] = new ArrayList<>();
-	    
+
 	    for (int j = 0; j < 1682; j++)
 	    {
 		if (mat.get(ctr, j) != 0)
@@ -483,7 +448,7 @@ public class RunnerLakh
 	System.out.println(definedList.length);
 	for (ArrayList<Integer> ar : definedList)
 	{
-	    System.out.println(ar.size());
+	    //System.out.println(ar.size());
 	    noOfRatings += ar.size();
 	}
 
@@ -554,7 +519,7 @@ public class RunnerLakh
 	{
 	    fi.delete();
 	}
-	Matrix testMat = makeMatrices(new File("testdata/100k - 4/Polygon_ratings"), m);
+	Matrix testMat = makeMatrices(new File("testdata/100k - 1/Polygon_ratings"), m);
 	System.out.println("RMSE:- " + rmse);
 	System.out.println("MAE:- " + mae);
 	//System.out.println("RMSE:- " + rmse(m, testMat));
