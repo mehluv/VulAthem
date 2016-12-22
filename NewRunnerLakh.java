@@ -342,7 +342,7 @@ public class NewRunnerLakh
 	    //System.out.println(ar.size());
 	    noOfRatings += ar.size();
 	}
-	noOfRatings *= 0.2;
+	noOfRatings *= (1-trainTestRatio);
 	System.out.println("====");
 	System.out.println(noOfRatings);
 	System.out.println(mae);
