@@ -1,4 +1,3 @@
-
 import Jama.Matrix;
 import java.io.BufferedReader;
 import java.io.File;
@@ -23,6 +22,7 @@ public class NewRunnerLakh
 
     static double rmse;
     static double mae;
+    static double noOfTestRatings;
     static protected final double trainTestRatio;
     /**
      * Multiplicative decay factor for learning_rate
@@ -50,7 +50,7 @@ public class NewRunnerLakh
     static
     {
 	trainTestRatio = 0.8;
-	noOfFeatures = 40;
+	noOfFeatures = 12;
 	learningRateDecay = 1.0;
 	noOfIterations = 1000;
 	learningRate = 0.01;
@@ -210,7 +210,7 @@ public class NewRunnerLakh
 	double currentLearningRate = learningRate;
 	for (int iter = 0; iter < noOfIterations; iter++)
 	{
-	    System.out.println(iter);
+	    //System.out.println(iter);
 	    ctr = 0;
 	    for (ArrayList<Integer> al : trainingSet)
 	    {
@@ -259,11 +259,12 @@ public class NewRunnerLakh
 		mae += Math.abs(err);
 		rmse += Math.pow(err, 2);
 	    }
+	    noOfTestRatings+=al.size();
 	    ctr++;
 	}
     }
 
-    public static Matrix makeMatrices(File fi, Matrix mat) throws Exception
+    public static Matrix prediction(File fi, Matrix mat) throws Exception
     {
 	boolean flag = false;
 	//File tha shit
@@ -345,11 +346,14 @@ public class NewRunnerLakh
 	noOfRatings *= (1-trainTestRatio);
 	System.out.println("====");
 	System.out.println(noOfRatings);
+	System.out.println("====");
+	mae /= noOfTestRatings;
+	rmse = Math.sqrt(rmse / noOfTestRatings);
+	
 	System.out.println(mae);
 	System.out.println(rmse);
+	
 	System.out.println("====");
-	mae /= noOfRatings;
-	rmse = Math.sqrt(rmse / noOfRatings);
 	double[][] mres = new double[mat.getRowDimension()][mat.getColumnDimension()];
 	Matrix res = new Matrix(mres);
 	for (int i = 1; i < index; i++)
@@ -391,7 +395,7 @@ public class NewRunnerLakh
 	{
 	    fi.delete();
 	}
-	Matrix testMat = makeMatrices(new File("testdata/100k - 3/Polygon_ratings"), m);
+	Matrix testMat = prediction(new File("testdata/100k - 3/Polygon_ratings"), m);
 	System.out.println("RMSE:- " + rmse);
 	System.out.println("MAE:- " + mae);
 	//System.out.println("RMSE:- " + rmse(m, testMat));
